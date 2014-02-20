@@ -87,4 +87,52 @@ describe('model', function() {
       });
     })
   });
+
+  describe('identityMap', function() {
+    var identityMap;
+
+    beforeEach(inject(function(_identityMap_) {
+      identityMap = _identityMap_;
+    }));
+
+    describe("that does not contain any objects", function() {
+      it("returns the new object", function() {
+        var object = {id: 1};
+        expect(identityMap('class', object)).toBe(object);
+      });
+    });
+
+    describe("that contains an object", function() {
+      var object = {id: 1};
+
+      beforeEach(function() {
+        identityMap('class', object);
+      });
+
+      describe("and is given a new object with the same class and ID", function() {
+        it("returns the existing object", function() {
+          expect(identityMap('class', {id: 1})).toBe(object);
+        });
+
+        it("merges the new values into the existing object", function() {
+          identityMap('class', {id: 1, test: 'test'});
+          expect(object.test).toBe('test');
+        });
+      });
+
+      describe("and is given an object with the same ID but a different class", function() {
+        it("returns the new object", function() {
+          var newObject = {id: 1};
+          expect(identityMap('newClass', newObject)).toBe(newObject);
+        });
+      });
+
+      describe("and is given an object with the same class and a new ID", function() {
+        it("returns the new object", function() {
+          var newObject = {id: 2};
+          expect(identityMap('class', newObject)).toBe(newObject);
+        });
+      });
+    });
+  });
 });

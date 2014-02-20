@@ -35,4 +35,43 @@ angular.module('shinetech.models', []).factory('Base', function() {
       }
     }
   };
-});;
+}).factory('identityMap',
+    /**
+     * A simple identity-map implementation. This can be used to ensure that, for some class
+     * descriptor and ID, only one instance of a particular object is ever used.
+     */
+    function() {
+      var identityMap = {};
+      /*
+       * Identity-maps an object. This means that:
+       *
+       * - If an object with the same class and ID already exists in the map, the new object will be
+       *   merged into the existing one, and the existing object returned.
+       * - If an object with the same class and ID does _not_already exist in the map, it will be
+       *   stored in the map and returned
+       *
+       * @param  {String} className a string descriptor of the class of the object
+       * @param  {Object} object the object to be mapped
+       * @return {Object} the identity-mapped object
+       */
+      return function(className, object) {
+        if (object) {
+          var mappedObject;
+          if (identityMap[className]) {
+            mappedObject = identityMap[className][object.id];
+            if (mappedObject) {
+              angular.extend(mappedObject, object);
+            } else {
+              identityMap[className][object.id] = object;
+              mappedObject = object;
+            }
+          } else {
+            identityMap[className] = {};
+            identityMap[className][object.id] = object;
+            mappedObject = object;
+          }
+          return mappedObject;
+        }
+      };
+    }
+  );;
