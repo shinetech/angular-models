@@ -6,7 +6,24 @@ describe('model', function() {
 
     beforeEach(inject(function(_Base_) {
       Base = _Base_;
-      Test = Base.extend({test: 'test'});
+      Test = Base.extend({
+        test: 'test',
+        get getter() {
+          return 'getter';
+        }
+      });
+
+      this.addMatchers({
+        toHaveGetterMethodCalled: function() {
+          return {
+            compare: function(actual, name) {
+              return {
+                pass: angular.isDefined(Object.getOwnPropertyDescriptor(actual, name).get)
+              };
+            }
+          };
+        }
+      });
     }));
 
     describe('extend', function() {
@@ -40,6 +57,10 @@ describe('model', function() {
         var MultiTest = Base.extend({test: 'test1'}, {test: 'test2'});
         expect(MultiTest.test).toEqual('test2');
       })
+
+      it('copies getter methods', function() {
+        expect(Object.getOwnPropertyDescriptor(Test, 'getter').get).toBeDefined;
+      })
     });
 
     describe('mixInto', function() {
@@ -58,6 +79,11 @@ describe('model', function() {
 
         it ('does not add properties to mixin', function() {
           expect(Test.data).not.toBeDefined;
+        });
+
+        it('copies getter methods in', function() {
+          expect(obj).toHaveGetterMethodCalled('getter');
+          expect(obj.getter).toBe('getter');
         });
       });
 
@@ -134,5 +160,97 @@ describe('model', function() {
         });
       });
     });
+  });
+
+  describe('extend', function() {
+    var extend;
+
+    beforeEach(inject(function(_extend_) {
+      extend = _extend_;
+    }));
+
+    describe('from a source object with both regular and getter properties', function() {
+      var destination;
+
+      beforeEach(function() {
+        destination = {};
+
+        extend(destination, {
+          test1: 'test1',
+          get test2() {
+            return 'test2';
+          }
+        });
+      });
+
+      it('copies regular property across', function() {
+        expect(destination.test1).toBe('test1');
+      });
+
+      it('copies the getter function across', function() {
+        expect(destination.test2).toBe('test2');
+      });
+
+      it('makes the getter function enumerable', function() {
+        expect(Object.keys(destination)).toContain('test2');
+      });
+
+      it('allows the getter function to be overridden', function() {
+        extend(destination, {
+          get test2() {return 'test2redux';}
+        });
+        expect(destination.test2).toBe('test2redux');
+      });
+    });
+
+    describe('from multiple source objects', function() {
+      beforeEach(function() {
+        destination = {};
+
+        extend(destination, {
+          test1: 'test1',
+          get test2() {
+            return 'test2';
+          },
+          test3: 'test3',
+          get test4() {
+            return 'test4';
+          }
+        }, {
+          test3: 'test3redux',
+          get test4() {
+            return 'test4redux'
+          },
+          test5: 'test5',
+          get test6() {
+            return 'test6';
+          }
+        });
+      });
+
+      it('copies properties from the first source', function() {
+        expect(destination.test1).toBe('test1');
+      });
+
+      it('copies getter functions from the first source', function() {
+        expect(destination.test2).toBe('test2');
+      });
+
+      it('overrides properties from the first source with those from the second', function() {
+        expect(destination.test3).toBe('test3redux');
+      });
+
+      it('overrides getter functions from the first source with those from the second', function() {
+        expect(destination.test4).toBe('test4redux');
+      });
+
+      it('copies properties from the second source', function() {
+        expect(destination.test5).toBe('test5');
+      });
+
+      it('copies getter functions from the second source', function() {
+        expect(destination.test6).toBe('test6');
+      });
+    })
   });
 });

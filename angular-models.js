@@ -1,8 +1,40 @@
-'use strict';
-
 /* Services */
 
-angular.module('shinetech.models', []).factory('Base', function() {
+angular.module('shinetech.models', []).factory('extend',
+  /**
+   * A custom object extension method that copies property getter function definitions across from
+   * the source to the target, rather than trying to just evaluate the property on the source and
+   * copying that across.
+   *
+   * Otherwise takes the same arguments as `angular.extend`.
+   */
+  function() {
+    return function extend(dst) {
+      angular.forEach(arguments, function(obj){
+        if (obj !== dst) {
+          for (key in obj) {
+            var propertyDescriptor = Object.getOwnPropertyDescriptor(obj, key);
+
+            // If we encounter a getter function,
+            if (propertyDescriptor && propertyDescriptor.get) {
+              // Manually copy the definition across rather than doing a regular copy, as the latter
+              // approach would result in the getter function being evaluated. Need to make it
+              // enumerable so subsequent mixins pass through the getter.
+              Object.defineProperty(
+                dst, key, {get: propertyDescriptor.get, enumerable: true, configurable: true}
+              );
+            } else {
+              // Otherwise, just do a regular copy
+              dst[key] = obj[key];
+            }
+          };
+        }
+      });
+
+      return dst;
+    };
+  }
+).factory('Base', function(extend) {
   return {
     /**
      * Defines a new mixin with a set of properties. Multiple sets of properties can be provided.
@@ -12,7 +44,7 @@ angular.module('shinetech.models', []).factory('Base', function() {
      */
     extend: function() {
       var args = Array.prototype.slice.call(arguments);
-      return angular.extend.apply(null, [{}, this].concat(args));
+      return extend.apply(null, [{}, this].concat(args));
     },
     /**
      * Mixes the properties of this mixin into an object. If the mixin defines a beforeMixingInto
@@ -29,7 +61,7 @@ angular.module('shinetech.models', []).factory('Base', function() {
         if (this.beforeMixingInto) this.beforeMixingInto.apply(this, arguments);
 
         // Always do this
-        angular.extend(object, this);
+        extend(object, this);
 
         return object;
       }
@@ -40,7 +72,7 @@ angular.module('shinetech.models', []).factory('Base', function() {
      * A simple identity-map implementation. This can be used to ensure that, for some class
      * descriptor and ID, only one instance of a particular object is ever used.
      */
-    function() {
+    function(extend) {
       var identityMap = {};
       /*
        * Identity-maps an object. This means that:
@@ -60,7 +92,7 @@ angular.module('shinetech.models', []).factory('Base', function() {
           if (identityMap[className]) {
             mappedObject = identityMap[className][object.id];
             if (mappedObject) {
-              angular.extend(mappedObject, object);
+              extend(mappedObject, object);
             } else {
               identityMap[className][object.id] = object;
               mappedObject = object;
@@ -74,4 +106,4 @@ angular.module('shinetech.models', []).factory('Base', function() {
         }
       };
     }
-  );;
+  );
