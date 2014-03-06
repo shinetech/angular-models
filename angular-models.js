@@ -39,7 +39,7 @@ angular.module('shinetech.models', []).factory('extend',
    * A base mixin that other mixins can extend upon. Provides basic infrastructure for defining new
    * mixins (`extend`) and mixing them into objects (`mixInto`).
    */
-  function(extend) {
+  function(extend, memoize) {
     return {
       /**
        * Defines a new mixin with a set of properties. Multiple sets of properties can be provided.
@@ -68,8 +68,72 @@ angular.module('shinetech.models', []).factory('extend',
           // Always do this
           extend(object, this);
 
+          // Setup memoization
+          angular.forEach(this.memoize, function(propertyName) {
+            var propertyDescriptor = Object.getOwnPropertyDescriptor(object, propertyName);
+
+            // If the property is a getter function,
+            if (propertyDescriptor && propertyDescriptor.get) {
+              // Redefine the propery getter to be memoized
+              Object.defineProperty(object, propertyName, {
+                get: memoize(propertyDescriptor.get), enumerable: true, configurable: true
+              });
+            } else {
+              var value = object[propertyName];
+              // If the property is a function
+              if (angular.isFunction(value)) {
+                // Redefine it to be memoized
+                object[propertyName] = memoize(value);
+              } else {
+                // If it's an array, check that each element is memoizable
+                if (angular.isArray(value)) {
+                  angular.forEach(value, function(element, index) {
+                    if (angular.isUndefined(element.unmemoize)) {
+                      throw "The array property '" + propertyName + "' is marked as memoizable, but " +
+                        "the element at index " + index + " doesn't have an unmemoize method";
+                    }
+                  });
+                } else {
+                  // If the property is an object, make sure it's unmemoizable
+                  if (angular.isUndefined(value.unmemoize)) {
+                    throw "The property '" + propertyName + "' is marked as memoizable, but it doesn't " +
+                      "have an unmemoize method";
+                  }
+                }
+              }
+            }
+          }, this);
+
           return object;
         }
+      },
+      unmemoize: function() {
+        angular.forEach(this.memoize, function(propertyName) {
+          var propertyDescriptor = Object.getOwnPropertyDescriptor(this, propertyName);
+
+          // If the property has a getter function,
+          if (propertyDescriptor && propertyDescriptor.get) {
+            // Unmemoize the function
+            propertyDescriptor.get.unmemoize();
+          } else {
+            var value = this[propertyName];
+            // If the property is a function
+            if (angular.isFunction(value)) {
+              // Unmemoize it
+              value.unmemoize();
+            } else {
+              // If it's an array, unmemoize each element
+              if (angular.isArray(value)) {
+                angular.forEach(value, function(element, index) {
+                  element.unmemoize();
+                });
+              } else {
+                // Otherwise, unmemoize directly
+                value.unmemoize();
+              }
+            }
+          }
+        }, this);
       }
     };
   }
@@ -112,4 +176,60 @@ angular.module('shinetech.models', []).factory('extend',
         }
       };
     }
-  );
+  ).factory('memoize', function() {
+      function unmemoize() {
+        delete this._cache;
+      };
+      /*
+       * Memoizes a function
+       *
+       * @param {function()} func the function to be memoized
+       * @return {function()} a new wrapper function that, when invoked for the first time, will
+       *   invoke the original function, storing the result and returning it. On subsequent
+       *   invocations, this result will be returned immediately rather than the original function
+       *   being invoked again. The wrapper function will also have an `unmemoize` method that, when
+       *   invoked, will clear any memoized value. This means that the next invocation of the
+       *   wrapper will trigger the memoization process again - ie, invoking the original function,
+       *   storing the result, etc.
+       */
+    return function(func) {
+      if (!angular.isFunction(func)) {
+        throw new TypeError;
+      }
+      var memoized = function() {
+        if (!angular.isDefined(memoized._cache)) {
+          // We need to store the result in a cache rather than storing it directly on the function
+          // so that we can use the presence of the cache to indicate whether we are currenly
+          // memoizing or not.
+          memoized._cache = {result: func.apply(this, arguments)};
+        }
+        return memoized._cache.result;
+      }
+
+      memoized.unmemoize = unmemoize;
+
+      return memoized;
+    };
+  }).factory('postEveryDigest', function() {
+    /**
+     * Executes a function after every digest cycle
+     *
+     * @param  {ng.$rootScope.Scope} $scope the scope to listen for digest cycles on
+     * @param  {function()} fn the function to execute
+     * @return {function()} a deregistration function to manually stop the listener
+     */
+    return function($scope, fn) {
+      // Based on Karl Seamon's work-around from https://github.com/angular/angular.js/issues/5828
+      // TODO Use ng.$rootScope.Scope.postDigestCycle instead if it every gets added to Angular
+      var hasRegistered = false;
+      return $scope.$watch(function() {
+        if (hasRegistered) return;
+        hasRegistered = true;
+        // Note that we're using a private Angular method here (for now)
+        $scope.$$postDigest(function() {
+          hasRegistered = false;
+          fn();
+        });
+      });
+    };
+  });

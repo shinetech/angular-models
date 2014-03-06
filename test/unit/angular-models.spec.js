@@ -2,7 +2,7 @@ describe('model', function() {
   beforeEach(module('shinetech.models'));
 
   describe('Base', function() {
-    var Base, Test;
+    var Base, Test, obj;
 
     beforeEach(inject(function(_Base_) {
       Base = _Base_;
@@ -65,8 +65,6 @@ describe('model', function() {
 
     describe('mixInto', function() {
       describe('when beforeMixingInto is not defined', function() {
-        var obj;
-
         beforeEach(function() {
           obj = {data: 'data'};
           Test.mixInto(obj);
@@ -112,6 +110,141 @@ describe('model', function() {
         });
       });
     })
+
+    describe('memoize', function() {
+      var result;
+      beforeEach(function() {
+        result = 1;
+        obj = {};
+      });
+
+      describe('a method', function() {
+        var returnValue;
+        beforeEach(function() {
+          Base.extend({
+            memoize: ['method'],
+            method: function() {
+              return result;
+            }
+          }).mixInto(obj);
+        });
+
+        describe('then invoke it', function() {
+          beforeEach(function() {
+            returnValue = obj.method();
+          });
+
+          it ('returns the right result', function() {
+            expect(returnValue).toBe(1);
+          });
+
+          describe('then increment the result', function() {
+            beforeEach(function() {
+              result++;
+            });
+
+            it('memoizes the method return value', function() {
+              expect(obj.method()).toBe(1);
+            });
+
+            it('returns the new value when unmemoized', function() {
+              obj.unmemoize();
+              expect(obj.method()).toBe(2);
+            });
+          });
+        });
+      });
+
+      describe('a property with a getter method', function() {
+        var returnValue;
+        beforeEach(function() {
+          Base.extend({
+            memoize: ['getter'],
+            get getter() {
+              return result;
+            }
+          }).mixInto(obj);
+        });
+
+        describe('then get it', function() {
+          beforeEach(function() {
+            returnValue = obj.getter;
+          });
+
+          it ('returns the right result', function() {
+            expect(returnValue).toBe(1);
+          });
+
+          describe('then increment the result', function() {
+            beforeEach(function() {
+              result++;
+            });
+
+            it('memoizes the return value', function() {
+              expect(obj.getter).toBe(1);
+            });
+
+            it('returns the new value when unmemoized', function() {
+              obj.unmemoize();
+              expect(obj.getter).toBe(2);
+            });
+          });
+        });
+      });
+
+      it('raises an error if memoizing a property value does not have an unmemoize method', function() {
+        expect(function() {
+          Base.extend({
+            memoize: ['property'],
+            property: {}
+          }).mixInto(obj);
+        }).toThrow();
+      });
+
+      it('raises an error if the property is an array whose elements do not have an unmemoize method', function() {
+        expect(function() {
+          Base.extend({
+            memoize: ['array'],
+            array: [{}]
+          }).mixInto(obj);
+        }).toThrow();
+      });
+    });
+
+    describe('unmemoize', function() {
+      it ('unmemoizes an object property', function() {
+        obj = {};
+        var Memoized = Base.extend({
+          memoize: ['property'],
+          property: {
+            unmemoize: function() {}
+          }
+        });
+        spyOn(Memoized.property, 'unmemoize');
+        Memoized.mixInto(obj);
+
+        obj.unmemoize();
+        expect(Memoized.property.unmemoize).toHaveBeenCalled;
+      });
+      it ('unmemoizes an array property', function() {
+        obj = {};
+        var Memoized = Base.extend({
+          memoize: ['array'],
+          array: [{
+            unmemoize: function() {}
+          }, {
+            unmemoize: function() {}
+          }]
+        });
+        spyOn(Memoized.array[0], 'unmemoize');
+        spyOn(Memoized.array[1], 'unmemoize');
+        Memoized.mixInto(obj);
+
+        obj.unmemoize();
+        expect(Memoized.array[0].unmemoize).toHaveBeenCalled;
+        expect(Memoized.array[1].unmemoize).toHaveBeenCalled;
+      });
+    });
   });
 
   describe('identityMap', function() {
@@ -252,5 +385,177 @@ describe('model', function() {
         expect(destination.test6).toBe('test6');
       });
     })
+  });
+
+  describe('memoize', function() {
+    var memoize;
+
+    beforeEach(inject(function(_memoize_) {
+      memoize = _memoize_;
+    }));
+
+    it('raises an error if not passed a function', function() {
+      expect(memoize).toThrow();
+    });
+
+    describe('a function', function() {
+      var memoized, spy, calls;
+
+      beforeEach(function() {
+        var obj = {
+          func: function() {
+            return 1;
+          }
+        };
+
+        // Need to setup spy BEFORE we memoize to make sure the spy gets memoized and not the
+        // original function
+        spy = spyOn(obj, 'func');
+
+        var func = obj.func;
+        calls = func.calls;
+        memoized = memoize(func);
+      });
+
+      describe('that returns a defined value', function() {
+        beforeEach(function() {
+          spy.andReturn(1);
+        });
+
+        describe('and invoking it', function() {
+          var value;
+          beforeEach(function() {
+            value = memoized();
+          });
+
+          it("calls the original function", function() {
+            expect(calls.length).toBe(1);
+          });
+
+          it("returns the correct value", function() {
+            expect(value).toBe(1);
+          })
+
+          describe('then changing the return value of the original function', function() {
+            beforeEach(function() {
+              spy.andReturn(2);
+            });
+
+            describe('and invoking the memoized version again', function() {
+              beforeEach(function() {
+                value = memoized();
+              });
+
+              it("doesn't call the original function", function() {
+                expect(calls.length).toBe(1);
+              });
+
+              it('returns the value of the first invocation', function() {
+                expect(value).toBe(1);
+              });
+            });
+
+            describe('then unmemoizing and invoking the memoized function again', function() {
+              beforeEach(function() {
+                memoized.unmemoize();
+                value = memoized();
+              });
+
+              it('executes the function again', function() {
+                expect(calls.length).toBe(2);
+              });
+
+              it('returns the new value', function() {
+                expect(value).toBe(2);
+              });
+            });
+          });
+        });
+      });
+
+      describe("that returns an undefined value", function() {
+        beforeEach(function() {
+          spy.andReturn(undefined);
+        });
+
+        describe('and invoking it', function() {
+          var value;
+          beforeEach(function() {
+            value = memoized();
+          });
+
+          it("calls the original function", function() {
+            expect(calls.length).toBe(1);
+          });
+
+          it("returns the correct value", function() {
+            expect(value).toBe(undefined);
+          })
+
+          describe('then changing the return value of the original function', function() {
+            beforeEach(function() {
+              spy.andReturn(1);
+            });
+
+            describe('and invoking the memoized version again', function() {
+              beforeEach(function() {
+                value = memoized();
+              });
+
+              it("doesn't call the original function", function() {
+                expect(calls.length).toBe(1);
+              });
+
+              it("returns the correct value", function() {
+                expect(value).toBe(undefined);
+              })
+            });
+          });
+        });
+      });
+    })
+  });
+
+  describe('postEveryDigest', function() {
+    var scope, postEveryDigest, callCount, stop;
+
+    beforeEach(inject(function($rootScope, _postEveryDigest_) {
+      scope = $rootScope.$new();
+      postEveryDigest = _postEveryDigest_;
+      callCount = 0;
+      stop = postEveryDigest(scope, function() {
+        callCount++;
+      });
+    }));
+
+    it('is invoked after every digest cycle', function() {
+      scope.$digest();
+      expect(callCount).toBe(1);
+      scope.$digest();
+      expect(callCount).toBe(2);
+    });
+
+    it('is invoked only once per digest cycle', function() {
+      // Set it up so that, by changing the result of the watch function a couple of times, we'll
+      // force multiple iterations over the watch list
+      var result = 0;
+      scope.$watch(function() {
+        if (result < 2) {
+          result++;
+        }
+        return result;
+      }, function() {
+        // Dummy watch function
+      });
+
+      scope.$digest();
+      expect(callCount).toBe(1);
+    });
+
+    it('returns a function that will stop it from executing', function() {
+      stop();
+      scope.$digest();
+      expect(callCount).toBe(0);
+    });
   });
 });
