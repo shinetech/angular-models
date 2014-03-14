@@ -85,7 +85,7 @@ angular.module('shinetech.models', []).factory('extend',
                 // Redefine it to be memoized
                 object[propertyName] = memoize(value);
               } else {
-                // If it's an array, check that each element is memoizable
+                // If it's an array, check that each element is unmemoizable
                 if (angular.isArray(value)) {
                   angular.forEach(value, function(element, index) {
                     if (angular.isUndefined(element.unmemoize)) {
