@@ -516,14 +516,14 @@ describe('model', function() {
     })
   });
 
-  describe('postEveryDigest', function() {
-    var scope, postEveryDigest, callCount, stop;
+  describe('afterEveryDigest', function() {
+    var scope, afterEveryDigest, callCount, stop;
 
-    beforeEach(inject(function($rootScope, _postEveryDigest_) {
+    beforeEach(inject(function($rootScope, _afterEveryDigest_) {
       scope = $rootScope.$new();
-      postEveryDigest = _postEveryDigest_;
+      afterEveryDigest = _afterEveryDigest_;
       callCount = 0;
-      stop = postEveryDigest(scope, function() {
+      stop = afterEveryDigest(scope, function() {
         callCount++;
       });
     }));

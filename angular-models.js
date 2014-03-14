@@ -210,7 +210,7 @@ angular.module('shinetech.models', []).factory('extend',
 
       return memoized;
     };
-  }).factory('postEveryDigest', function() {
+  }).factory('afterEveryDigest', function() {
     /**
      * Executes a function after every digest cycle
      *
