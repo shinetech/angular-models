@@ -12,7 +12,7 @@ angular.module('shinetech.models', []).factory('extend',
     return function extend(dst) {
       angular.forEach(arguments, function(obj){
         if (obj !== dst) {
-          for (key in obj) {
+          for (var key in obj) {
             var propertyDescriptor = Object.getOwnPropertyDescriptor(obj, key);
 
             // If we encounter a getter function,
