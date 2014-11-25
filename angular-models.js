@@ -34,7 +34,7 @@ angular.module('shinetech.models', []).factory('extend',
       return dst;
     };
   }
-).factory('Base',
+).factory('BaseModel',
   /**
    * A base mixin that other mixins can extend upon. Provides basic infrastructure for defining new
    * mixins (`extend`) and mixing them into objects (`mixInto`).

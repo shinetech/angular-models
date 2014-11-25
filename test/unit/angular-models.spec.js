@@ -1,12 +1,12 @@
 describe('model', function() {
   beforeEach(module('shinetech.models'));
 
-  describe('Base', function() {
-    var Base, Test, obj;
+  describe('BaseModel', function() {
+    var BaseModel, Test, obj;
 
-    beforeEach(inject(function(_Base_) {
-      Base = _Base_;
-      Test = Base.extend({
+    beforeEach(inject(function(_BaseModel_) {
+      BaseModel = _BaseModel_;
+      Test = BaseModel.extend({
         test: 'test',
         get getter() {
           return 'getter';
@@ -33,7 +33,7 @@ describe('model', function() {
       });
 
       it ('does not add properties to base', function() {
-        expect(Base.test).not.toBeDefined;
+        expect(BaseModel.test).not.toBeDefined;
       });
 
       it ('allows sub-extension', function() {
@@ -48,13 +48,13 @@ describe('model', function() {
       })
 
       it ('handles multiple extensions', function() {
-        var MultiTest = Base.extend({test1: 'test1'}, {test2: 'test2'});
+        var MultiTest = BaseModel.extend({test1: 'test1'}, {test2: 'test2'});
         expect(MultiTest.test1).toEqual('test1');
         expect(MultiTest.test2).toEqual('test2');
       });
 
       it ('gives the last extension object property priority', function() {
-        var MultiTest = Base.extend({test: 'test1'}, {test: 'test2'});
+        var MultiTest = BaseModel.extend({test: 'test1'}, {test: 'test2'});
         expect(MultiTest.test).toEqual('test2');
       })
 
@@ -121,7 +121,7 @@ describe('model', function() {
       describe('a method', function() {
         var returnValue;
         beforeEach(function() {
-          Base.extend({
+          BaseModel.extend({
             memoize: ['method'],
             method: function() {
               return result;
@@ -158,7 +158,7 @@ describe('model', function() {
       describe('a property with a getter method', function() {
         var returnValue;
         beforeEach(function() {
-          Base.extend({
+          BaseModel.extend({
             memoize: ['getter'],
             get getter() {
               return result;
@@ -194,7 +194,7 @@ describe('model', function() {
 
       it('raises an error if memoizing a property value does not have an unmemoize method', function() {
         expect(function() {
-          Base.extend({
+          BaseModel.extend({
             memoize: ['property'],
             property: {}
           }).mixInto(obj);
@@ -203,7 +203,7 @@ describe('model', function() {
 
       it('raises an error if the property is an array whose elements do not have an unmemoize method', function() {
         expect(function() {
-          Base.extend({
+          BaseModel.extend({
             memoize: ['array'],
             array: [{}]
           }).mixInto(obj);
@@ -214,7 +214,7 @@ describe('model', function() {
     describe('unmemoize', function() {
       it ('unmemoizes an object property', function() {
         obj = {};
-        var Memoized = Base.extend({
+        var Memoized = BaseModel.extend({
           memoize: ['property'],
           property: {
             unmemoize: function() {}
@@ -228,7 +228,7 @@ describe('model', function() {
       });
       it ('unmemoizes an array property', function() {
         obj = {};
-        var Memoized = Base.extend({
+        var Memoized = BaseModel.extend({
           memoize: ['array'],
           array: [{
             unmemoize: function() {}
